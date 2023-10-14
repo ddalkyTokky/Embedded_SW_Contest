@@ -214,18 +214,15 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                         readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
                         mReadBuffer.setText(readMessage);
 
-                        int num = 0;
+                        alpha = 0;
                         for(int i = 0; i < readMessage.length(); i++){
                             char temp_item = readMessage.charAt(i);
                             if((temp_item >= '0') && (temp_item <= '9')){
-                                num *= 10;
-                                num += (temp_item - 48);
-                            }
-                            else{
-                                Toast.makeText(getApplication(), num + " ", Toast.LENGTH_SHORT).show();
-                                break;
+                                alpha *= 10;
+                                alpha += (temp_item - 48);
                             }
                         }
+                        Toast.makeText(getApplication(), alpha + " ", Toast.LENGTH_SHORT).show();
                     }
 
                     if (msg.what == CONNECTING_STATUS) {
