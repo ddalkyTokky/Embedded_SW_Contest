@@ -46,18 +46,8 @@ import java.util.UUID;
 
 public class ArrowActivity extends AppCompatActivity implements SensorEventListener {
     private TextView txtResult;
-
-    private double gps_long;
-    private double gps_lat;
-    private double gps_alt;
-
-    private double net_long;
-    private double net_lat;
-    private double net_alt;
-
-    private double fus_long;
-    private double fus_lat;
-    private double fus_alt;
+    private double now_long;
+    private double now_lat;
 
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
@@ -89,6 +79,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private TextView mReadBuffer;
     private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
+    private int alpha = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -135,46 +126,17 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
     final LocationListener gpsLocationListener = new LocationListener() {
         public void onLocationChanged(Location location) {
-            String provider = location.getProvider();
-            if (Objects.equals(provider, "gps")) {
-                gps_long = location.getLongitude();
-                gps_lat = location.getLatitude();
-                gps_alt = location.getAltitude();
-            } else if (Objects.equals(provider, "network")) {
-                net_long = location.getLongitude();
-                net_lat = location.getLatitude();
-                net_alt = location.getAltitude();
-            } else if (Objects.equals(provider, "fused")) {
-                fus_long = location.getLongitude();
-                fus_lat = location.getLatitude();
-                fus_alt = location.getAltitude();
-            }
-
-            //            txtResult.setText(" " + (int) azimuthinDegress + "° ");
-            //            txtResult.setText("위치정보 : gps \n" +
-            //                    "위도 : " + gps_long + "\n" +
-            //                    "경도 : " + gps_lat + "\n" +
-            //                    "고도  : " + gps_alt + "\n\n" +
-            //                    "위치정보 : network \n" +
-            //                    "위도 : " + net_long + "\n" +
-            //                    "경도 : " + net_lat + "\n" +
-            //                    "고도  : " + net_alt + "\n\n" +
-            //                    "위치정보 : fused \n" +
-            //                    "위도 : " + fus_long + "\n" +
-            //                    "경도 : " + fus_lat + "\n" +
-            //                    "고도  : " + fus_alt + "\n\n" +
-            //                    "방위각 : " + azimuthinDegress + "\n\n" +
-            //                    "breaing : " + bearing
-            //            );
+            now_long = location.getLongitude();
+            now_lat = location.getLatitude();
 
             // 위도, 경도를 라디안 단위로 변환
-            double w1 = fus_lat * Math.PI / 180;
+            double w1 = now_lat * Math.PI / 180;
             double w2 = carLat * Math.PI / 180;
-            double r1 = fus_long * Math.PI / 180;
+            double r1 = now_long * Math.PI / 180;
             double r2 = carLong * Math.PI / 180;
 
             double y = Math.sin(r2 - r1) * Math.cos(w2);
-            double x = Math.cos(w1) * Math.sin(w2) - Math.sin(w1) * Math.cos(w2) * Math.cos(r2 - r1);
+            double x = (Math.cos(w1) * Math.sin(w2)) - (Math.sin(w1) * Math.cos(w2) * Math.cos(r2 - r1));
             double seta = Math.atan2(y, x); // 방위각 (라디안)
             bearing = (seta * 180 / Math.PI + 360) % 360; // 방위각 (디그리, 정규화 완료)
         }
@@ -217,16 +179,17 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
             azimuthinDegress = (int) (Math.toDegrees(SensorManager.getOrientation(mR, mOrientation)[0]) + 360) % 360;
 
             if ((System.currentTimeMillis() - lastUpdate) > 500) {
-                RotateAnimation ra = new RotateAnimation(mCurrentDegress, 360 - azimuthinDegress + (float) bearing, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+                RotateAnimation ra = new RotateAnimation(mCurrentDegress, (float) bearing - azimuthinDegress, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
                 ra.setDuration(250);
                 ra.setFillAfter(true);
                 mArrow.startAnimation(ra);
 
-                txtResult.setText(" " + (int) azimuthinDegress + "° ");
+                txtResult.setText(" " + (int) azimuthinDegress + "° \n " + (int) bearing + "° ");
 
                 lastUpdate = System.currentTimeMillis();
+
+                mCurrentDegress = (float) bearing - azimuthinDegress;
             }
-            mCurrentDegress = 360 - azimuthinDegress + (float) bearing;
         }
     }
 
@@ -242,7 +205,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
         final String address = ((StoreDevice) getApplication()).global_address;
 
         if ((name != null) && (address != null)) {
-            Toast.makeText(getApplication(), name + " : " + address, Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplication(), name + " " + address, Toast.LENGTH_SHORT).show();
             mHandler = new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(Message msg) {
@@ -250,6 +213,19 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                         String readMessage = null;
                         readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
                         mReadBuffer.setText(readMessage);
+
+                        int num = 0;
+                        for(int i = 0; i < readMessage.length(); i++){
+                            char temp_item = readMessage.charAt(i);
+                            if((temp_item >= '0') && (temp_item <= '9')){
+                                num *= 10;
+                                num += (temp_item - 48);
+                            }
+                            else{
+                                Toast.makeText(getApplication(), num + " ", Toast.LENGTH_SHORT).show();
+                                break;
+                            }
+                        }
                     }
 
                     if (msg.what == CONNECTING_STATUS) {
