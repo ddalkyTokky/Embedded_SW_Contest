@@ -69,19 +69,13 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private Double carLat;
     private Double carLong;
     private long lastUpdate = 0;
-    private BluetoothAdapter mBTAdapter;
-    private BluetoothSocket mBTSocket = null; // bi-directional client-to-client data path
-
-    private static final UUID BT_MODULE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
-    private final String TAG = ArrowActivity.class.getSimpleName();
     private Handler mHandler; // Our main handler that will receive callback notifications
     public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private TextView mReadBuffer;
     private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
-    private int alpha;
-    private int beta;
-    private int gamma;
+    private int alpha = -1;
+    private int gamma = -1;
     private int stack = 0;
 
     @Override
@@ -182,16 +176,19 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
             azimuthinDegress = (int) (Math.toDegrees(SensorManager.getOrientation(mR, mOrientation)[0]) + 360) % 360;
 
             if ((System.currentTimeMillis() - lastUpdate) > 500) {
-                RotateAnimation ra = new RotateAnimation(mCurrentDegress, (float) bearing - azimuthinDegress, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+                float arrowDegree;
+                if (gamma == -1) {
+                    arrowDegree = (float) bearing - azimuthinDegress;
+                } else {
+                    arrowDegree = gamma - alpha + azimuthinDegress;
+                }
+                RotateAnimation ra = new RotateAnimation(mCurrentDegress, arrowDegree, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
                 ra.setDuration(250);
                 ra.setFillAfter(true);
                 mArrow.startAnimation(ra);
-
                 txtResult.setText(" " + (int) azimuthinDegress + "° \n " + (int) bearing + "° ");
-
                 lastUpdate = System.currentTimeMillis();
-
-                mCurrentDegress = (float) bearing - azimuthinDegress;
+                mCurrentDegress = arrowDegree;
             }
         }
     }
@@ -228,10 +225,9 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                             num += (temp_item - 48);
                             flag = true;
                         }
-                        if(temp_item == 'c'){
-                            alpha = 0;
-                            beta = 0;
-                            gamma = 0;
+                        if (temp_item == 'c') {
+                            alpha = -1;
+                            gamma = -1;
                             stack = 0;
                             break;
                         }
@@ -243,18 +239,13 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                                 stack++;
                                 break;
                             case (1):
-                                beta = num;
-                                stack++;
-                                break;
-                            case (2):
                                 gamma = num;
                                 stack = 0;
                                 break;
                         }
                     }
-
 //                    Toast.makeText(getApplication(), readMessage, Toast.LENGTH_LONG).show();
-                    Toast.makeText(getApplication(), "alpha: " + alpha + "\nbeta: " + beta + "\ngamma: " + gamma, Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplication(), "alpha: " + alpha + "\ngamma: " + gamma, Toast.LENGTH_LONG).show();
                 }
 
                 if (msg.what == CONNECTING_STATUS) {
