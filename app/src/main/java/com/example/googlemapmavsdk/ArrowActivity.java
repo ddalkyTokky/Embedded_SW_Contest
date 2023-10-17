@@ -79,7 +79,10 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private TextView mReadBuffer;
     private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
-    private int alpha = 0;
+    private int alpha;
+    private int beta;
+    private int gamma;
+    private int stack = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -214,15 +217,35 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                         readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
                         mReadBuffer.setText(readMessage);
 
-                        alpha = 0;
+                        int num = 0;
                         for(int i = 0; i < readMessage.length(); i++){
                             char temp_item = readMessage.charAt(i);
                             if((temp_item >= '0') && (temp_item <= '9')){
-                                alpha *= 10;
-                                alpha += (temp_item - 48);
+                                num *= 10;
+                                num += (temp_item - 48);
+                            }
+                            else{
+                                num = -1;
+                                break;
                             }
                         }
-                        Toast.makeText(getApplication(), alpha + " ", Toast.LENGTH_SHORT).show();
+                        if(num != -1){
+                            switch (stack){
+                                case(0):
+                                    alpha = num;
+                                    stack++;
+                                    break;
+                                case(1):
+                                    beta = num;
+                                    stack++;
+                                    break;
+                                case(2):
+                                    gamma = num;
+                                    stack = 0;
+                                    break;
+                            }
+                        }
+                        Toast.makeText(getApplication(), "alpha: " + alpha + " ", Toast.LENGTH_SHORT).show();
                     }
 
                     if (msg.what == CONNECTING_STATUS) {
