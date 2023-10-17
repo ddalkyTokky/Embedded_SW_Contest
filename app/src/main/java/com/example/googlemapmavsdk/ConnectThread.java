@@ -26,6 +26,8 @@ public class ConnectThread extends Thread {
     private String mAddress;
     private String mName;
     private Context mContext;
+    private String error1;
+    private String error2;
 
     public ConnectThread(String TAG, BluetoothAdapter inAdapter, Handler inHandler, String inAddress, Context inContext, String inName) {
         mTAG = TAG;
@@ -52,14 +54,16 @@ public class ConnectThread extends Thread {
         try {
             mBTSocket.connect();
         } catch (IOException e) {
+            error1 = e.toString();
             try {
                 fail = true;
                 mBTSocket.close();
                 mHandler.obtainMessage(CONNECTING_STATUS, -1, -1)
                         .sendToTarget();
             } catch (IOException e2) {
+                error2 = e2.toString();
                 //insert code to deal with this
-                Toast.makeText(mContext, mContext.getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
+//                Toast.makeText(mContext, mContext.getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
             }
         }
         if (!fail) {
@@ -68,15 +72,18 @@ public class ConnectThread extends Thread {
 
             mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, mName)
                     .sendToTarget();
+        } else {
+            mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, error1 + error2)
+                    .sendToTarget();
         }
     }
 
-    public void write(String input){
-        if(mConnectedThread != null) //First check to make sure thread created
+    public void write(String input) {
+        if (mConnectedThread != null) //First check to make sure thread created
             mConnectedThread.write(input);
     }
 
-    public void changeContextHandler(Context inContext, Handler inHandler){
+    public void changeContextHandler(Context inContext, Handler inHandler) {
         mContext = inContext;
         mHandler = inHandler;
         mConnectedThread.changeHandler(mHandler);

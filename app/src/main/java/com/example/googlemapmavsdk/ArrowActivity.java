@@ -202,6 +202,13 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     }
 
     private void connectBluetooth() {
+
+        mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
+
+        if (mConnectThread == null) {
+            return;
+        }
+
         mReadBuffer = (TextView) findViewById(R.id.textview_readbuffer);
 
         mHandler = new Handler(Looper.getMainLooper()) {
@@ -212,18 +219,24 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                     readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
                     mReadBuffer.setText(readMessage);
 
+                    boolean flag = false;
                     int num = 0;
                     for (int i = 0; i < readMessage.length(); i++) {
                         char temp_item = readMessage.charAt(i);
                         if ((temp_item >= '0') && (temp_item <= '9')) {
                             num *= 10;
                             num += (temp_item - 48);
-                        } else {
-                            num = -1;
+                            flag = true;
+                        }
+                        if(temp_item == 'c'){
+                            alpha = 0;
+                            beta = 0;
+                            gamma = 0;
+                            stack = 0;
                             break;
                         }
                     }
-                    if (num != -1) {
+                    if (flag) {
                         switch (stack) {
                             case (0):
                                 alpha = num;
@@ -239,7 +252,9 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                                 break;
                         }
                     }
-                    Toast.makeText(getApplication(), "alpha: " + alpha + " ", Toast.LENGTH_SHORT).show();
+
+//                    Toast.makeText(getApplication(), readMessage, Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplication(), "alpha: " + alpha + "\nbeta: " + beta + "\ngamma: " + gamma, Toast.LENGTH_LONG).show();
                 }
 
                 if (msg.what == CONNECTING_STATUS) {
@@ -252,7 +267,6 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                 }
             }
         };
-        mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
 //        try {
 //            mConnectThread.wait();
 //            Toast.makeText(this, "THREAD STOP", Toast.LENGTH_LONG);

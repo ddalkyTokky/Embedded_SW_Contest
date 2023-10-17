@@ -67,7 +67,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="0.9"
         android:ellipsize="end"
-        android:maxLines="1"
+        android:maxLines="5"
         android:text="&lt;Bluetooth Status>" />
   </LinearLayout>
 
