@@ -5,7 +5,6 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
-import android.nfc.Tag;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.Toast;
@@ -16,39 +15,39 @@ import java.util.UUID;
 
 public class ConnectThread extends Thread {
     private static final UUID BT_MODULE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
+    //private static final UUID BT_MODULE_UUID = UUID.fromString("94f39d29-7d6d-437d-973b-fba39e49d4ee");
     public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
-    private String mTAG = null;
+    private String mTAG;
     private BluetoothAdapter mBTAdapter;
-    private Handler mHandler = null; // Our main handler that will receive callback notifications
+    private Handler mHandler; // Our main handler that will receive callback notifications
     private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
-    private BluetoothSocket mBTSocket = null; // bi-directional client-to-client data path
+    private BluetoothSocket mBTSocket; // bi-directional client-to-client data path
     private String mAddress;
     private String mName;
-    private Context mContext = null;
+    private Context mContext;
 
-    public ConnectThread(String TAG, BluetoothAdapter inAdapter, Handler inHandler, BluetoothSocket inSocket, String inAddress, Context inContext, String inName) {
+    public ConnectThread(String TAG, BluetoothAdapter inAdapter, Handler inHandler, String inAddress, Context inContext, String inName) {
         mTAG = TAG;
         mBTAdapter = inAdapter;
         mHandler = inHandler;
-        mBTSocket = inSocket;
         mAddress = inAddress;
         mContext = inContext;
         mName = inName;
+
+        BluetoothDevice device = mBTAdapter.getRemoteDevice(mAddress);
+        try {
+            mBTSocket = createBluetoothSocket(device);
+        } catch (IOException e) {
+            Toast.makeText(mContext, mContext.getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
+        }
     }
 
     @SuppressLint("MissingPermission")
     @Override
     public void run() {
         boolean fail = false;
-
-        BluetoothDevice device = mBTAdapter.getRemoteDevice(mAddress);
-        try {
-            mBTSocket = createBluetoothSocket(device);
-        } catch (IOException e) {
-            fail = true;
-            Toast.makeText(mContext, mContext.getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
-        }
+        mBTAdapter.cancelDiscovery();
         // Establish the Bluetooth socket connection.
         try {
             mBTSocket.connect();

@@ -61,7 +61,6 @@ public class BluetoothActivity extends AppCompatActivity {
 
     private Handler mHandler; // Our main handler that will receive callback notifications
     private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
-    private BluetoothSocket mBTSocket = null; // bi-directional client-to-client data path
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -255,7 +254,7 @@ public class BluetoothActivity extends AppCompatActivity {
             final String name = info.substring(0,info.length() - 17);
 
             // Spawn a new thread to avoid blocking the GUI one
-            mConnectThread = new ConnectThread(TAG, mBTAdapter, mHandler, mBTSocket, address, getApplicationContext(), name);
+            mConnectThread = new ConnectThread(TAG, mBTAdapter, mHandler, address, getApplicationContext(), name);
             mConnectThread.start();
 
             ((StoreDevice) getApplication()).globalConnectThread = mConnectThread;
