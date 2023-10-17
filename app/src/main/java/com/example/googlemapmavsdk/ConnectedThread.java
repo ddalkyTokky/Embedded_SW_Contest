@@ -12,7 +12,7 @@ public class ConnectedThread extends Thread {
     private final BluetoothSocket mmSocket;
     private final InputStream mmInStream;
     private final OutputStream mmOutStream;
-    private final Handler mHandler;
+    private Handler mHandler;
 
     public ConnectedThread(BluetoothSocket socket, Handler handler) {
         mmSocket = socket;
@@ -62,6 +62,10 @@ public class ConnectedThread extends Thread {
         try {
             mmOutStream.write(bytes);
         } catch (IOException e) { }
+    }
+
+    public void changeHandler(Handler inHandler){
+        mHandler = inHandler;
     }
 
     /* Call this from the main activity to shutdown the connection */

@@ -78,7 +78,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private TextView mReadBuffer;
-    private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
+    private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
     private int alpha;
     private int beta;
     private int gamma;
@@ -204,116 +204,62 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private void connectBluetooth() {
         mReadBuffer = (TextView) findViewById(R.id.textview_readbuffer);
 
-        final String name = ((StoreDevice) getApplication()).global_name;
-        final String address = ((StoreDevice) getApplication()).global_address;
+        mHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                if (msg.what == MESSAGE_READ) {
+                    String readMessage = null;
+                    readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
+                    mReadBuffer.setText(readMessage);
 
-        if ((name != null) && (address != null)) {
-            Toast.makeText(getApplication(), name + " " + address, Toast.LENGTH_SHORT).show();
-            mHandler = new Handler(Looper.getMainLooper()) {
-                @Override
-                public void handleMessage(Message msg) {
-                    if (msg.what == MESSAGE_READ) {
-                        String readMessage = null;
-                        readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
-                        mReadBuffer.setText(readMessage);
-
-                        int num = 0;
-                        for(int i = 0; i < readMessage.length(); i++){
-                            char temp_item = readMessage.charAt(i);
-                            if((temp_item >= '0') && (temp_item <= '9')){
-                                num *= 10;
-                                num += (temp_item - 48);
-                            }
-                            else{
-                                num = -1;
-                                break;
-                            }
-                        }
-                        if(num != -1){
-                            switch (stack){
-                                case(0):
-                                    alpha = num;
-                                    stack++;
-                                    break;
-                                case(1):
-                                    beta = num;
-                                    stack++;
-                                    break;
-                                case(2):
-                                    gamma = num;
-                                    stack = 0;
-                                    break;
-                            }
-                        }
-                        Toast.makeText(getApplication(), "alpha: " + alpha + " ", Toast.LENGTH_SHORT).show();
-                    }
-
-                    if (msg.what == CONNECTING_STATUS) {
-                        char[] sConnected;
-                        if (msg.arg1 == 1) {
-                            Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
+                    int num = 0;
+                    for (int i = 0; i < readMessage.length(); i++) {
+                        char temp_item = readMessage.charAt(i);
+                        if ((temp_item >= '0') && (temp_item <= '9')) {
+                            num *= 10;
+                            num += (temp_item - 48);
                         } else {
-                            Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
+                            num = -1;
+                            break;
                         }
+                    }
+                    if (num != -1) {
+                        switch (stack) {
+                            case (0):
+                                alpha = num;
+                                stack++;
+                                break;
+                            case (1):
+                                beta = num;
+                                stack++;
+                                break;
+                            case (2):
+                                gamma = num;
+                                stack = 0;
+                                break;
+                        }
+                    }
+                    Toast.makeText(getApplication(), "alpha: " + alpha + " ", Toast.LENGTH_SHORT).show();
+                }
+
+                if (msg.what == CONNECTING_STATUS) {
+                    char[] sConnected;
+                    if (msg.arg1 == 1) {
+                        Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
                     }
                 }
-            };
-
-            mBTAdapter = BluetoothAdapter.getDefaultAdapter(); // get a handle on the bluetooth radio
-
-            if (!mBTAdapter.isEnabled()) {
-                Toast.makeText(getBaseContext(), getString(R.string.BTnotOn), Toast.LENGTH_SHORT).show();
-            } else {
-                // Spawn a new thread to avoid blocking the GUI one
-                Thread new_thread = new Thread() {
-                    @SuppressLint("MissingPermission")
-                    @Override
-                    public void run() {
-                        boolean fail = false;
-
-                        BluetoothDevice device = mBTAdapter.getRemoteDevice(address);
-
-                        try {
-                            mBTSocket = createBluetoothSocket(device);
-                        } catch (IOException e) {
-                            fail = true;
-                            Toast.makeText(getBaseContext(), getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
-                        }
-                        // Establish the Bluetooth socket connection.
-                        try {
-                            mBTSocket.connect();
-                        } catch (IOException e) {
-                            try {
-                                fail = true;
-                                mBTSocket.close();
-                                mHandler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
-                            } catch (IOException e2) {
-                                //insert code to deal with this
-                                Toast.makeText(getBaseContext(), getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                        if (!fail) {
-                            mConnectedThread = new ConnectedThread(mBTSocket, mHandler);
-                            mConnectedThread.start();
-
-                            mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, name).sendToTarget();
-                        }
-                    }
-                };
-
-                new_thread.start();
             }
-        }
+        };
+        mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
+//        try {
+//            mConnectThread.wait();
+//            Toast.makeText(this, "THREAD STOP", Toast.LENGTH_LONG);
+//        } catch (InterruptedException e) {
+//            Toast.makeText(this, "THREAD CANNOT STOP", Toast.LENGTH_LONG);
+//        }
+        mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
     }
 
-    @SuppressLint("MissingPermission")
-    private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
-        try {
-            final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", UUID.class);
-            return (BluetoothSocket) m.invoke(device, BT_MODULE_UUID);
-        } catch (Exception e) {
-            Log.e(TAG, "Could not create Insecure RFComm Connection", e);
-        }
-        return device.createRfcommSocketToServiceRecord(BT_MODULE_UUID);
-    }
 }

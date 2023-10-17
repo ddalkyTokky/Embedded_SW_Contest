@@ -60,7 +60,7 @@ public class BluetoothActivity extends AppCompatActivity {
     private ArrayAdapter<String> mBTArrayAdapter;
 
     private Handler mHandler; // Our main handler that will receive callback notifications
-    private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
+    private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
     private BluetoothSocket mBTSocket = null; // bi-directional client-to-client data path
 
     @Override
@@ -117,8 +117,8 @@ public class BluetoothActivity extends AppCompatActivity {
             mLED1.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View v){
-                    if(mConnectedThread != null) //First check to make sure thread created
-                        mConnectedThread.write("1");
+                    if(mConnectThread != null) //First check to make sure thread created
+                        mConnectThread.write("wow");
                 }
             });
 
@@ -254,48 +254,11 @@ public class BluetoothActivity extends AppCompatActivity {
             final String address = info.substring(info.length() - 17);
             final String name = info.substring(0,info.length() - 17);
 
-            ((StoreDevice) getApplication()).global_name = name;
-            ((StoreDevice) getApplication()).global_address = address;
-
             // Spawn a new thread to avoid blocking the GUI one
-            new Thread()
-            {
-                @SuppressLint("MissingPermission")
-                @Override
-                public void run() {
-                    boolean fail = false;
+            mConnectThread = new ConnectThread(TAG, mBTAdapter, mHandler, mBTSocket, address, getApplicationContext(), name);
+            mConnectThread.start();
 
-                    BluetoothDevice device = mBTAdapter.getRemoteDevice(address);
-
-                    try {
-                        mBTSocket = createBluetoothSocket(device);
-                    } catch (IOException e) {
-                        fail = true;
-                        Toast.makeText(getBaseContext(), getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
-                    }
-                    // Establish the Bluetooth socket connection.
-                    try {
-                        mBTSocket.connect();
-                    } catch (IOException e) {
-                        try {
-                            fail = true;
-                            mBTSocket.close();
-                            mHandler.obtainMessage(CONNECTING_STATUS, -1, -1)
-                                    .sendToTarget();
-                        } catch (IOException e2) {
-                            //insert code to deal with this
-                            Toast.makeText(getBaseContext(), getString(R.string.ErrSockCrea), Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                    if(!fail) {
-                        mConnectedThread = new ConnectedThread(mBTSocket, mHandler);
-                        mConnectedThread.start();
-
-                        mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, name)
-                                .sendToTarget();
-                    }
-                }
-            }.start();
+            ((StoreDevice) getApplication()).globalConnectThread = mConnectThread;
         }
     };
 
