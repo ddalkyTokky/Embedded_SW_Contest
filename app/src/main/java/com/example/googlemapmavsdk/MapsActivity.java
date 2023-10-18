@@ -18,8 +18,13 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -32,12 +37,18 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.example.googlemapmavsdk.databinding.ActivityMapsBinding;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, SensorEventListener {
     private GoogleMap mMap;
     private Marker mMarker;
     private ActivityMapsBinding binding;
+    public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
+    private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
+    private Handler mHandler; // Our main handler that will receive callback notifications
+    private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
+
     private double carLat = 37.601070088505644;
     private double carLong = 126.865068843289;
     private static final float ZOOM_SCALE = 17f;
@@ -46,8 +57,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
 
-    private double fus_long;
-    private double fus_lat;
+    private double now_long;
+    private double now_lat;
+//    private long lastGPSUpdate = 0;
 
     CameraPosition cameraPosition;
 
@@ -78,35 +90,37 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     final LocationListener gpsLocationListener = new LocationListener() {
         public void onLocationChanged(Location location) {
+//            String provider = location.getProvider();
+//            if (Objects.equals(provider, "gps")) {
+//                lastGPSUpdate = System.currentTimeMillis();
+//            }
+//            if (Objects.equals(provider, "fused")) {
+            now_long = location.getLongitude();
+            now_lat = location.getLatitude();
+//            }
 
-            String provider = location.getProvider();
-            if (Objects.equals(provider, "fused")) {
-                fus_long = location.getLongitude();
-                fus_lat = location.getLatitude();
-
-                if (mMarker != null) {
-                    mMarker.remove();
-                }
-                mMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(fus_lat, fus_long)).title("My Location"));
-
-                // 위도, 경도를 라디안 단위로 변환
-                double w1 = fus_lat * Math.PI / 180;
-                double w2 = carLat * Math.PI / 180;
-                double r1 = fus_long * Math.PI / 180;
-                double r2 = carLong * Math.PI / 180;
-
-                double y = Math.sin(r2 - r1) * Math.cos(w2);
-                double x = Math.cos(w1) * Math.sin(w2) - Math.sin(w1) * Math.cos(w2) * Math.cos(r2 - r1);
-                double seta = Math.atan2(y, x); // 방위각 (라디안)
-                double bearing = (seta * 180 / Math.PI + 360) % 360; // 방위각 (디그리, 정규화 완료)
-
-                cameraPosition = new CameraPosition.Builder().target(new LatLng(carLat, carLong))      // Sets the center of the map to Mountain View
-                        .zoom(ZOOM_SCALE)                   // Sets the zoom
-                        .bearing((float) bearing)      // Sets the orientation of the camera to east
-                        .tilt(0)                   // Sets the tilt of the camera to 30 degrees
-                        .build();                   // Creates a CameraPosition from the builder
-                mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 100, null);
+            if (mMarker != null) {
+                mMarker.remove();
             }
+            mMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(now_lat, now_long)).title("My Location"));
+
+            // 위도, 경도를 라디안 단위로 변환
+            double w1 = now_lat * Math.PI / 180;
+            double w2 = carLat * Math.PI / 180;
+            double r1 = now_long * Math.PI / 180;
+            double r2 = carLong * Math.PI / 180;
+
+            double y = Math.sin(r2 - r1) * Math.cos(w2);
+            double x = Math.cos(w1) * Math.sin(w2) - Math.sin(w1) * Math.cos(w2) * Math.cos(r2 - r1);
+            double seta = Math.atan2(y, x); // 방위각 (라디안)
+            double bearing = (seta * 180 / Math.PI + 360) % 360; // 방위각 (디그리, 정규화 완료)
+
+            cameraPosition = new CameraPosition.Builder().target(new LatLng(carLat, carLong))      // Sets the center of the map to Mountain View
+                    .zoom(ZOOM_SCALE)                   // Sets the zoom
+                    .bearing((float) bearing)      // Sets the orientation of the camera to east
+                    .tilt(0)                   // Sets the tilt of the camera to 30 degrees
+                    .build();                   // Creates a CameraPosition from the builder
+            mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition), 100, null);
         }
 
         public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -195,5 +209,51 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
+    }
+
+    private void connectBluetooth() {
+
+        mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
+
+        if (mConnectThread == null) {
+            return;
+        }
+
+        mHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                if (msg.what == MESSAGE_READ) {
+                    String readMessage = null;
+                    readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
+
+                    boolean flag = false;
+                    for (int i = 0; i < readMessage.length(); i++) {
+                        char temp_item = readMessage.charAt(i);
+                        if (temp_item == 'e') {
+                            carLat = now_lat;
+                            carLong = now_long;
+                            break;
+                        }
+                    }
+                    Toast.makeText(getApplication(), "car LAT LONG changed!!", Toast.LENGTH_LONG).show();
+                }
+
+                if (msg.what == CONNECTING_STATUS) {
+                    char[] sConnected;
+                    if (msg.arg1 == 1) {
+                        Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        };
+//        try {
+//            mConnectThread.wait();
+//            Toast.makeText(this, "THREAD STOP", Toast.LENGTH_LONG);
+//        } catch (InterruptedException e) {
+//            Toast.makeText(this, "THREAD CANNOT STOP", Toast.LENGTH_LONG);
+//        }
+        mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
     }
 }

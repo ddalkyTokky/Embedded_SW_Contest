@@ -123,8 +123,10 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
     final LocationListener gpsLocationListener = new LocationListener() {
         public void onLocationChanged(Location location) {
+//            if (Objects.equals(location.getProvider(), "fused")) {
             now_long = location.getLongitude();
             now_lat = location.getLatitude();
+//            }
 
             // 위도, 경도를 라디안 단위로 변환
             double w1 = now_lat * Math.PI / 180;
