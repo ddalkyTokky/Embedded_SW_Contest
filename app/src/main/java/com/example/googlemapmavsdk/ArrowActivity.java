@@ -70,6 +70,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private Double carLat;
     private Double carLong;
     private long lastUpdate = 0;
+    private long lastGsendTime = 0;
     private Handler mHandler; // Our main handler that will receive callback notifications
     public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
@@ -127,7 +128,8 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
     final LocationListener gpsLocationListener = new LocationListener() {
         public void onLocationChanged(Location location) {
-//            if (Objects.equals(location.getProvider(), "fused")) {
+            String provider = location.getProvider();
+//            if (Objects.equals(provider, "gps")) {
             now_long = location.getLongitude();
             now_lat = location.getLatitude();
 //            }
@@ -170,13 +172,16 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
-        if (gamma == -1) {
-            if (mConnectThread != null) {
-                mConnectThread.write("g");
+        if ((System.currentTimeMillis() - lastUpdate) > 1000) {
+            if (gamma == -1) {
+                if (mConnectThread != null) {
+                    mConnectThread.write("g");
+                }
+                if (mConnectThread2 != null) {
+                    mConnectThread2.write("g");
+                }
             }
-            if (mConnectThread2 != null) {
-                mConnectThread2.write("g");
-            }
+            lastGsendTime = System.currentTimeMillis();
         }
 
         if (sensorEvent.sensor == mAccelerometer) {
@@ -257,10 +262,16 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
             };
         }
         if (mConnectThread != null) {
-            mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+            try {
+                mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+            } catch (Exception e) {
+            }
         }
         if (mConnectThread2 != null) {
-            mConnectThread2.changeContextHandler(getApplicationContext(), mHandler);
+            try {
+                mConnectThread2.changeContextHandler(getApplicationContext(), mHandler);
+            } catch (Exception e) {
+            }
         }
     }
 }

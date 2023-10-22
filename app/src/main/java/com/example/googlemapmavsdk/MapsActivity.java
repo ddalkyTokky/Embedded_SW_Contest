@@ -62,6 +62,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private double now_lat;
     private int alpha = -1;
     private int floor = 999;
+    private boolean alpha_floor_flag = false;
     private int alpha_floor_stack = 0;
 
 //    private long lastGPSUpdate = 0;
@@ -96,13 +97,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     final LocationListener gpsLocationListener = new LocationListener() {
         public void onLocationChanged(Location location) {
-//            String provider = location.getProvider();
+            String provider = location.getProvider();
 //            if (Objects.equals(provider, "gps")) {
-//                lastGPSUpdate = System.currentTimeMillis();
-//            }
-//            if (Objects.equals(provider, "fused")) {
             now_long = location.getLongitude();
             now_lat = location.getLatitude();
+//            }
+//            if (Objects.equals(provider, "fused")) {
+//                now_long = location.getLongitude();
+//                now_lat = location.getLatitude();
 //            }
 
             if (humanMarker != null) {
@@ -223,7 +225,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void connectBluetooth() {
         mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
         mConnectThread2 = ((StoreDevice) getApplication()).globalConnectThread2;
-        if(mHandler == null) {
+        if (mHandler == null) {
             mHandler = new Handler(Looper.getMainLooper()) {
                 @Override
                 public void handleMessage(Message msg) {
@@ -246,16 +248,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             Toast.makeText(getApplication(), "car LAT LONG changed!!", Toast.LENGTH_LONG).show();
                             carMarker.remove();
                             carMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(carLat, carLong)).icon(BitmapDescriptorFactory.defaultMarker(MISSION_MARKER_COLOR)).title("My Car"));
-                        }
-                        else{
+                            alpha_floor_stack = 0;
+                            alpha_floor_flag = true;
+                            AWSUtils awsutils = new AWSUtils(getApplicationContext());
+                        } else if (alpha_floor_flag) {
                             try {
-                                if(alpha_floor_stack == 0){
+                                if (alpha_floor_stack == 0) {
                                     alpha = Integer.valueOf(input_str);
                                     alpha_floor_stack = (1 - alpha_floor_stack);
-                                }
-                                else if(alpha_floor_stack == 1){
+                                } else if (alpha_floor_stack == 1) {
                                     floor = Integer.valueOf(input_str);
                                     alpha_floor_stack = (1 - alpha_floor_stack);
+                                    alpha_floor_flag = false;
                                 }
                             } catch (Exception e) {
                             }
@@ -274,10 +278,16 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             };
         }
         if (mConnectThread != null) {
-            mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+            try {
+                mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+            } catch (Exception e) {
+            }
         }
         if (mConnectThread2 != null) {
-            mConnectThread2.changeContextHandler(getApplicationContext(), mHandler);
+            try {
+                mConnectThread2.changeContextHandler(getApplicationContext(), mHandler);
+            } catch (Exception e) {
+            }
         }
     }
 }

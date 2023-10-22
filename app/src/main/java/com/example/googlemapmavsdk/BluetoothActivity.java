@@ -254,12 +254,12 @@ public class BluetoothActivity extends AppCompatActivity {
                 mConnectThread.start();
                 ((StoreDevice) getApplication()).globalConnectThread = mConnectThread;
                 threadStack++;
-                Toast.makeText(getApplicationContext(), "thread stored at global 1", Toast.LENGTH_LONG);
+//                Toast.makeText(getApplicationContext(), "thread stored at global 1", Toast.LENGTH_LONG);
             } else if (threadStack == 1) {
                 mConnectThread2 = new ConnectThread(TAG, mBTAdapter, mHandler, address, getApplicationContext(), name);
                 mConnectThread2.start();
                 ((StoreDevice) getApplication()).globalConnectThread2 = mConnectThread2;
-                Toast.makeText(getApplicationContext(), "thread stored at global 2", Toast.LENGTH_LONG);
+//                Toast.makeText(getApplicationContext(), "thread stored at global 2", Toast.LENGTH_LONG);
                 threadStack = 0;
             }
         }
