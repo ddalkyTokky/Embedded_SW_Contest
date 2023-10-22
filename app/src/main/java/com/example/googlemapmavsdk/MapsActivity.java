@@ -210,6 +210,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onResume();
         mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
         connectBluetooth();
+        try {
+            if (mConnectThread != null) {
+                mConnectThread.write("s");
+            }
+        } catch (Exception e) {
+        }
+        try {
+            if (mConnectThread2 != null) {
+                mConnectThread2.write("s");
+            }
+        } catch (Exception e) {
+        }
     }
 
     @Override

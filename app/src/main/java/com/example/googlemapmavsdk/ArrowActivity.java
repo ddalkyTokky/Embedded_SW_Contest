@@ -172,7 +172,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
-        if ((System.currentTimeMillis() - lastUpdate) > 1000) {
+        if ((System.currentTimeMillis() - lastGsendTime) > 1000) {
             if (gamma == -1) {
                 if (mConnectThread != null) {
                     mConnectThread.write("g");
