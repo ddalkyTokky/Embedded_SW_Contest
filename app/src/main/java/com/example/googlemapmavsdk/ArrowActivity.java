@@ -41,6 +41,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -74,9 +75,10 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private TextView mReadBuffer;
     private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
+    private ConnectThread mConnectThread2; // bluetooth background worker thread to send and receive data
     private int alpha = -1;
     private int gamma = -1;
-    private int stack = 0;
+    private int floor = 999;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,6 +92,8 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
         Intent intent = getIntent(); /*데이터 수신*/
 
         double intentLatLong[] = intent.getExtras().getDoubleArray("carLatLong"); /*배열*/
+        alpha = intent.getExtras().getInt("alpha");
+        floor = intent.getExtras().getInt("floor");
 
         //Toast.makeText(getApplication(), "done", Toast.LENGTH_SHORT).show();
 
@@ -166,6 +170,15 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
+        if (gamma == -1) {
+            if (mConnectThread != null) {
+                mConnectThread.write("g");
+            }
+            if (mConnectThread2 != null) {
+                mConnectThread2.write("g");
+            }
+        }
+
         if (sensorEvent.sensor == mAccelerometer) {
             System.arraycopy(sensorEvent.values, 0, mLastAccelerometer, 0, sensorEvent.values.length);
             mLastAccelerometerSet = true;
@@ -179,7 +192,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
 
             if ((System.currentTimeMillis() - lastUpdate) > 500) {
                 float arrowDegree;
-                if (gamma == -1) {
+                if ((gamma == -1) || (alpha == -1)) {
                     arrowDegree = (float) bearing - azimuthinDegress;
                 } else {
                     arrowDegree = gamma - alpha + azimuthinDegress;
@@ -188,7 +201,7 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                 ra.setDuration(250);
                 ra.setFillAfter(true);
                 mArrow.startAnimation(ra);
-                txtResult.setText(" " + (int) azimuthinDegress + "° \n " + (int) bearing + "° ");
+                txtResult.setText(" " + (int) alpha + "° \n " + (int) gamma + "° \n " + floor + "f ");
                 lastUpdate = System.currentTimeMillis();
                 mCurrentDegress = arrowDegree;
             }
@@ -201,72 +214,53 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     }
 
     private void connectBluetooth() {
-
         mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
-
-        if (mConnectThread == null) {
-            return;
-        }
+        mConnectThread2 = ((StoreDevice) getApplication()).globalConnectThread2;
 
         mReadBuffer = (TextView) findViewById(R.id.textview_readbuffer);
 
-        mHandler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                if (msg.what == MESSAGE_READ) {
-                    String readMessage = null;
-                    readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
-                    mReadBuffer.setText(readMessage);
+        if (mHandler == null) {
+            mHandler = new Handler(Looper.getMainLooper()) {
+                @Override
+                public void handleMessage(Message msg) {
+                    if (msg.what == MESSAGE_READ) {
+                        String readMessage;
+                        readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
+                        mReadBuffer.setText(readMessage);
 
-                    boolean flag = false;
-                    int num = 0;
-                    for (int i = 0; i < readMessage.length(); i++) {
-                        char temp_item = readMessage.charAt(i);
-                        if ((temp_item >= '0') && (temp_item <= '9')) {
-                            num *= 10;
-                            num += (temp_item - 48);
-                            flag = true;
+                        String input_str = "";
+                        for (int i = 0; i < readMessage.length(); i++) {
+                            char temp_item = readMessage.charAt(i);
+                            if ((temp_item >= '0') && (temp_item <= '9') ||
+                                    (temp_item >= 'a') && (temp_item <= 'z') ||
+                                    (temp_item >= 'A') && (temp_item <= 'Z')) {
+                                input_str += temp_item;
+                            }
                         }
-                        if (temp_item == 'c') {
-                            alpha = -1;
-                            gamma = -1;
-                            stack = 0;
-                            break;
+                        try {
+                            gamma = Integer.valueOf(input_str);
+                        } catch (Exception e) {
                         }
-                    }
-                    if (flag) {
-                        switch (stack) {
-                            case (0):
-                                alpha = num;
-                                stack++;
-                                break;
-                            case (1):
-                                gamma = num;
-                                stack = 0;
-                                break;
-                        }
-                    }
-//                    Toast.makeText(getApplication(), readMessage, Toast.LENGTH_LONG).show();
-                    Toast.makeText(getApplication(), "alpha: " + alpha + "\ngamma: " + gamma, Toast.LENGTH_LONG).show();
-                }
 
-                if (msg.what == CONNECTING_STATUS) {
-                    char[] sConnected;
-                    if (msg.arg1 == 1) {
-                        Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(getApplication(), "alpha: " + alpha + "\ngamma: " + gamma + "\nfloor: " + floor, Toast.LENGTH_SHORT).show();
+                    }
+
+                    if (msg.what == CONNECTING_STATUS) {
+                        char[] sConnected;
+                        if (msg.arg1 == 1) {
+                            Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
-            }
-        };
-//        try {
-//            mConnectThread.wait();
-//            Toast.makeText(this, "THREAD STOP", Toast.LENGTH_LONG);
-//        } catch (InterruptedException e) {
-//            Toast.makeText(this, "THREAD CANNOT STOP", Toast.LENGTH_LONG);
-//        }
-        mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+            };
+        }
+        if (mConnectThread != null) {
+            mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+        }
+        if (mConnectThread2 != null) {
+            mConnectThread2.changeContextHandler(getApplicationContext(), mHandler);
+        }
     }
-
 }

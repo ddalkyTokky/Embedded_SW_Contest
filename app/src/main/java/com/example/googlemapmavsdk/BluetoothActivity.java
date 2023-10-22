@@ -33,7 +33,7 @@ import java.util.UUID;
 public class BluetoothActivity extends AppCompatActivity {
 
     private final String TAG = BluetoothActivity.class.getSimpleName();
-
+    private int threadStack = 0;
     private static final UUID BT_MODULE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
 
     // #defines for identifying shared types between calling functions
@@ -57,6 +57,7 @@ public class BluetoothActivity extends AppCompatActivity {
 
     private Handler mHandler; // Our main handler that will receive callback notifications
     private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
+    private ConnectThread mConnectThread2; // bluetooth background worker thread to send and receive data
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,15 +113,15 @@ public class BluetoothActivity extends AppCompatActivity {
                 public void onClick(View v) {
                     if (mConnectThread != null) //First check to make sure thread created
                         mConnectThread.write("wow");
+                    if (mConnectThread2 != null) //First check to make sure thread created
+                        mConnectThread2.write("wow2");
                 }
             });
-
 
             mOnBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     bluetoothOn();
-                    AWSUtils awsutils = new AWSUtils(getApplicationContext());
                 }
             });
 
@@ -244,10 +245,23 @@ public class BluetoothActivity extends AppCompatActivity {
             final String name = info.substring(0, info.length() - 17);
 
             // Spawn a new thread to avoid blocking the GUI one
-            mConnectThread = new ConnectThread(TAG, mBTAdapter, mHandler, address, getApplicationContext(), name);
-            mConnectThread.start();
+//            if(mConnectThread != null){
+//                mConnectThread.
+//            }
 
-            ((StoreDevice) getApplication()).globalConnectThread = mConnectThread;
+            if(threadStack == 0) {
+                mConnectThread = new ConnectThread(TAG, mBTAdapter, mHandler, address, getApplicationContext(), name);
+                mConnectThread.start();
+                ((StoreDevice) getApplication()).globalConnectThread = mConnectThread;
+                threadStack++;
+                Toast.makeText(getApplicationContext(), "thread stored at global 1", Toast.LENGTH_LONG);
+            } else if (threadStack == 1) {
+                mConnectThread2 = new ConnectThread(TAG, mBTAdapter, mHandler, address, getApplicationContext(), name);
+                mConnectThread2.start();
+                ((StoreDevice) getApplication()).globalConnectThread2 = mConnectThread2;
+                Toast.makeText(getApplicationContext(), "thread stored at global 2", Toast.LENGTH_LONG);
+                threadStack = 0;
+            }
         }
     };
 }

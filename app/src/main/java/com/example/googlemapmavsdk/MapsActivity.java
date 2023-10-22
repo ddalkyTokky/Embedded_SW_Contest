@@ -42,13 +42,14 @@ import java.util.Objects;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, SensorEventListener {
     private GoogleMap mMap;
-    private Marker mMarker;
+    private Marker humanMarker = null;
+    private Marker carMarker = null;
     private ActivityMapsBinding binding;
     public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private Handler mHandler; // Our main handler that will receive callback notifications
     private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
-
+    private ConnectThread mConnectThread2; // bluetooth background worker thread to send and receive data
     private double carLat = 37.601070088505644;
     private double carLong = 126.865068843289;
     private static final float ZOOM_SCALE = 17f;
@@ -59,6 +60,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private double now_long;
     private double now_lat;
+    private int alpha = -1;
+    private int floor = 999;
+    private int alpha_floor_stack = 0;
+
 //    private long lastGPSUpdate = 0;
 
     CameraPosition cameraPosition;
@@ -86,6 +91,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             lm.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 10, 1, gpsLocationListener);
         }
+        connectBluetooth();
     }
 
     final LocationListener gpsLocationListener = new LocationListener() {
@@ -99,10 +105,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             now_lat = location.getLatitude();
 //            }
 
-            if (mMarker != null) {
-                mMarker.remove();
+            if (humanMarker != null) {
+                humanMarker.remove();
             }
-            mMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(now_lat, now_long)).title("My Location"));
+            humanMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(now_lat, now_long)).title("My Location"));
 
             // 위도, 경도를 라디안 단위로 변환
             double w1 = now_lat * Math.PI / 180;
@@ -148,7 +154,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // Add a marker in Sydney and move the camera
         LatLng initialPoint = new LatLng(carLat, carLong);
-        mMap.addMarker(new MarkerOptions().position(initialPoint).icon(BitmapDescriptorFactory.defaultMarker(MISSION_MARKER_COLOR)).title("My Car"));
+        carMarker = mMap.addMarker(new MarkerOptions().position(initialPoint).icon(BitmapDescriptorFactory.defaultMarker(MISSION_MARKER_COLOR)).title("My Car"));
         mMap.moveCamera(CameraUpdateFactory.zoomTo(ZOOM_SCALE));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(initialPoint));
 
@@ -176,6 +182,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 double[] intentLatLong = {carLat, carLong};
                 intent.putExtra("carLatLong", intentLatLong);
+                intent.putExtra("alpha", alpha);
+                intent.putExtra("floor", floor);
 
                 startActivity(intent);
                 break;
@@ -199,6 +207,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onResume() {
         super.onResume();
         mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+        connectBluetooth();
     }
 
     @Override
@@ -212,48 +221,63 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void connectBluetooth() {
-
         mConnectThread = ((StoreDevice) getApplication()).globalConnectThread;
+        mConnectThread2 = ((StoreDevice) getApplication()).globalConnectThread2;
+        if(mHandler == null) {
+            mHandler = new Handler(Looper.getMainLooper()) {
+                @Override
+                public void handleMessage(Message msg) {
+                    if (msg.what == MESSAGE_READ) {
+                        String readMessage = null;
+                        readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
 
-        if (mConnectThread == null) {
-            return;
-        }
-
-        mHandler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                if (msg.what == MESSAGE_READ) {
-                    String readMessage = null;
-                    readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
-
-                    boolean flag = false;
-                    for (int i = 0; i < readMessage.length(); i++) {
-                        char temp_item = readMessage.charAt(i);
-                        if (temp_item == 'e') {
+                        String input_str = "";
+                        for (int i = 0; i < readMessage.length(); i++) {
+                            char temp_item = readMessage.charAt(i);
+                            if ((temp_item >= '0') && (temp_item <= '9') ||
+                                    (temp_item >= 'a') && (temp_item <= 'z') ||
+                                    (temp_item >= 'A') && (temp_item <= 'Z')) {
+                                input_str += temp_item;
+                            }
+                        }
+                        if (input_str.equals("e")) {
                             carLat = now_lat;
                             carLong = now_long;
-                            break;
+                            Toast.makeText(getApplication(), "car LAT LONG changed!!", Toast.LENGTH_LONG).show();
+                            carMarker.remove();
+                            carMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(carLat, carLong)).icon(BitmapDescriptorFactory.defaultMarker(MISSION_MARKER_COLOR)).title("My Car"));
+                        }
+                        else{
+                            try {
+                                if(alpha_floor_stack == 0){
+                                    alpha = Integer.valueOf(input_str);
+                                    alpha_floor_stack = (1 - alpha_floor_stack);
+                                }
+                                else if(alpha_floor_stack == 1){
+                                    floor = Integer.valueOf(input_str);
+                                    alpha_floor_stack = (1 - alpha_floor_stack);
+                                }
+                            } catch (Exception e) {
+                            }
                         }
                     }
-                    Toast.makeText(getApplication(), "car LAT LONG changed!!", Toast.LENGTH_LONG).show();
-                }
 
-                if (msg.what == CONNECTING_STATUS) {
-                    char[] sConnected;
-                    if (msg.arg1 == 1) {
-                        Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
+                    if (msg.what == CONNECTING_STATUS) {
+                        char[] sConnected;
+                        if (msg.arg1 == 1) {
+                            Toast.makeText(getApplication(), getString(R.string.BTConnected) + msg.obj, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getApplication(), getString(R.string.BTconnFail), Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
-            }
-        };
-//        try {
-//            mConnectThread.wait();
-//            Toast.makeText(this, "THREAD STOP", Toast.LENGTH_LONG);
-//        } catch (InterruptedException e) {
-//            Toast.makeText(this, "THREAD CANNOT STOP", Toast.LENGTH_LONG);
-//        }
-        mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+            };
+        }
+        if (mConnectThread != null) {
+            mConnectThread.changeContextHandler(getApplicationContext(), mHandler);
+        }
+        if (mConnectThread2 != null) {
+            mConnectThread2.changeContextHandler(getApplicationContext(), mHandler);
+        }
     }
 }

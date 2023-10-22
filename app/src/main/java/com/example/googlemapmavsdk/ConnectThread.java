@@ -14,8 +14,7 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 
 public class ConnectThread extends Thread {
-    //private static final UUID BT_MODULE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
-    private static final UUID BT_MODULE_UUID = UUID.fromString("94f39d29-7d6d-437d-973b-fba39e49d4ee");
+    private static final UUID BT_MODULE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
     public final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
     private String mTAG;
