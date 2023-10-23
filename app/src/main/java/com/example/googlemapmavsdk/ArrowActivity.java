@@ -200,13 +200,13 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                 if ((gamma == -1) || (alpha == -1)) {
                     arrowDegree = (float) bearing - azimuthinDegress;
                 } else {
-                    arrowDegree = gamma - alpha + azimuthinDegress;
+                    arrowDegree = alpha + 180 + gamma - azimuthinDegress;
                 }
                 RotateAnimation ra = new RotateAnimation(mCurrentDegress, arrowDegree, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
                 ra.setDuration(250);
                 ra.setFillAfter(true);
                 mArrow.startAnimation(ra);
-                txtResult.setText(" " + (int) alpha + "° \n " + (int) gamma + "° \n " + floor + "f ");
+                txtResult.setText(" " + (int) alpha + "° \n " + (int) azimuthinDegress + "° \n " + arrowDegree + "° ");
                 lastUpdate = System.currentTimeMillis();
                 mCurrentDegress = arrowDegree;
             }
