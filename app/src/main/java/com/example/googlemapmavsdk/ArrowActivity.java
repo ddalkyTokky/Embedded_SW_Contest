@@ -77,9 +77,10 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
     private TextView mReadBuffer;
     private ConnectThread mConnectThread; // bluetooth background worker thread to send and receive data
     private ConnectThread mConnectThread2; // bluetooth background worker thread to send and receive data
-    private int alpha = -1;
+    private int alpha;
     private int gamma = -1;
-    private int floor = 999;
+    private int distance = -1;
+    private int floor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -195,18 +196,38 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
             SensorManager.getRotationMatrix(mR, null, mLastAccelerometer, mLastMagnetometer);
             azimuthinDegress = (int) (Math.toDegrees(SensorManager.getOrientation(mR, mOrientation)[0]) + 360) % 360;
 
-            if ((System.currentTimeMillis() - lastUpdate) > 500) {
+            if ((System.currentTimeMillis() - lastUpdate) > 100) {
                 float arrowDegree;
-                if ((gamma == -1) || (alpha == -1)) {
+                String print_txt = "";
+                if ((gamma >= 0) && (gamma <= 359)){
+                    print_txt = " " + distance + "m \n";
+                    if((alpha >= 0) && (alpha <= 359)){
+                        arrowDegree = (540 + alpha - azimuthinDegress + gamma) % 360;
+                    }
+                    else{
+                        arrowDegree = (float) bearing - azimuthinDegress;
+                    }
+                }
+                else{
+                    print_txt += " 거리정보 없음 \n";
                     arrowDegree = (float) bearing - azimuthinDegress;
-                } else {
-                    arrowDegree = alpha + 180 + gamma - azimuthinDegress;
+                }
+                if(floor == 999){
+                    print_txt += " 층수정보 없음 ";
+                }
+                else{
+                    if(floor >= 1) {
+                        print_txt += " " + floor + "층 ";
+                    }
+                    else if (floor < 0){
+                        print_txt += " B" + (floor * -1) + "층 ";
+                    }
                 }
                 RotateAnimation ra = new RotateAnimation(mCurrentDegress, arrowDegree, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
                 ra.setDuration(250);
                 ra.setFillAfter(true);
                 mArrow.startAnimation(ra);
-                txtResult.setText(" " + (int) alpha + "° \n " + (int) azimuthinDegress + "° \n " + arrowDegree + "° ");
+                txtResult.setText(print_txt);
                 lastUpdate = System.currentTimeMillis();
                 mCurrentDegress = arrowDegree;
             }
@@ -231,22 +252,31 @@ public class ArrowActivity extends AppCompatActivity implements SensorEventListe
                     if (msg.what == MESSAGE_READ) {
                         String readMessage;
                         readMessage = new String((byte[]) msg.obj, StandardCharsets.UTF_8);
-                        mReadBuffer.setText(readMessage);
+//                        mReadBuffer.setText(readMessage);
 
-                        String input_str = "";
+                        int num = 0;
+                        int num2 = 0;
+                        boolean gamma_or_distance = true;
                         for (int i = 0; i < readMessage.length(); i++) {
                             char temp_item = readMessage.charAt(i);
-                            if ((temp_item >= '0') && (temp_item <= '9') ||
-                                    (temp_item >= 'a') && (temp_item <= 'z') ||
-                                    (temp_item >= 'A') && (temp_item <= 'Z')) {
-                                input_str += temp_item;
+                            if (temp_item == 'g') {
+                                gamma_or_distance = true;
+                            }
+                            if (temp_item == 'd') {
+                                gamma_or_distance = false;
+                            }
+                            if ((temp_item >= '0') && (temp_item <= '9')) {
+                                if (gamma_or_distance) {
+                                    num *= 10;
+                                    num += (temp_item - 48);
+                                } else {
+                                    num2 *= 10;
+                                    num2 += (temp_item - 48);
+                                }
                             }
                         }
-                        try {
-                            gamma = Integer.valueOf(input_str);
-                        } catch (Exception e) {
-                        }
-
+                        gamma = num;
+                        distance = num2;
 //                        Toast.makeText(getApplication(), "alpha: " + alpha + "\ngamma: " + gamma + "\nfloor: " + floor, Toast.LENGTH_SHORT).show();
                     }
 

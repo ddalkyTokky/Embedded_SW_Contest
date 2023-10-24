@@ -250,7 +250,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             char temp_item = readMessage.charAt(i);
                             if ((temp_item >= '0') && (temp_item <= '9') ||
                                     (temp_item >= 'a') && (temp_item <= 'z') ||
-                                    (temp_item >= 'A') && (temp_item <= 'Z')) {
+                                    (temp_item >= 'A') && (temp_item <= 'Z') ||
+                                    (temp_item == '-')) {
                                 input_str += temp_item;
                             }
                         }
