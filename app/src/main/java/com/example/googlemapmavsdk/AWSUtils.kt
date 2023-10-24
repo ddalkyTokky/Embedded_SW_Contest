@@ -18,7 +18,7 @@ class AWSUtils (applicationContext: Context) {
 // Cognito 샘플 코드. CredentialsProvider 객체 생성
         val credentialsProvider = CognitoCachingCredentialsProvider(
                 applicationContext,
-                "ap-northeast-2:7f7da145-bfdc-4c7a-bbb2-3aa9a4ee0e2d", // 자격 증명 풀 ID
+                "ap-northeast-2:???", // 자격 증명 풀 ID
                 Regions.AP_NORTHEAST_2 // 리전
         )
 
@@ -28,13 +28,13 @@ class AWSUtils (applicationContext: Context) {
         // TransferUtility 객체 생성
         val transferUtility = TransferUtility.builder()
                 .context(applicationContext)
-                .defaultBucket("soonyongbucket") // 디폴트 버킷 이름.
+                .defaultBucket("bucket name") // 디폴트 버킷 이름.
                 .s3Client(AmazonS3Client(credentialsProvider, Region.getRegion(Regions.AP_NORTHEAST_2)))
                 .build()
 
         // 다운로드 실행. object: "SomeFile.mp4". 두 번째 파라메터는 Local경로 File 객체.
         Toast.makeText(applicationContext, applicationContext.filesDir.absolutePath, Toast.LENGTH_LONG).show()
-        val downloadObserver = transferUtility.download("metro.jpg", File(applicationContext.filesDir.absolutePath + "/metro.jpg"))
+        val downloadObserver = transferUtility.download("filename.jpg", File(applicationContext.filesDir.absolutePath + "/file name.jpg"))
 
         // 다운로드 과정을 알 수 있도록 Listener를 추가할 수 있다.
         downloadObserver.setTransferListener(object : TransferListener {
